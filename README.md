@@ -15,7 +15,7 @@ A compact Python utility that parses mathematical equations written in LaTeX, so
 1. **Clone the repository** (or copy the files into your project):
 
    ```bash
-   git clone <repository_url>
+   git clone https://github.com/alexkolesnikov08/Math
    cd Math
    ```
 
