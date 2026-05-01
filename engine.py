@@ -30,9 +30,7 @@ from sympy.parsing.latex import parse_latex
 from sympy.printing.latex import latex
 
 
-# ----------------------------------------------------------------------
 # Helper utilities
-# ----------------------------------------------------------------------
 def _split_into_equations(latex: str) -> List[str]:
     """Split a LaTeX source that may contain several equations.
 
@@ -148,9 +146,7 @@ def _numeric_approx(solution: sympy.Expr) -> sympy.Expr:
     return solution.evalf()
 
 
-# ----------------------------------------------------------------------
 # Public API
-# ----------------------------------------------------------------------
 def generate_solution_steps(latex_input: str) -> List[str]:
     """Generate a LaTeX‑formatted solution chain for the given input.
 
@@ -176,7 +172,7 @@ def generate_solution_steps(latex_input: str) -> List[str]:
     steps: List[str] = []
 
     try:
-        # 1️⃣ Split input.
+        # 1. Split input.
         # Early validation: the input must contain either an equality sign or a
         # LaTeX cases environment.  Otherwise we treat it as malformed.
         if "=" not in latex_input and r"\begin{cases}" not in latex_input:
@@ -201,10 +197,10 @@ def generate_solution_steps(latex_input: str) -> List[str]:
 
         sympy_eqs = [_latex_to_sympy(eq) for eq in raw_eqs]
 
-        # 2️⃣ Show original input.
+        # 2. Show original input.
         steps.append(latex_input)
 
-        # 3️⃣ Simplify each equation and display.
+        # 3. Simplify each equation and display.
         simplified = []
         for eq in sympy_eqs:
             if isinstance(eq, Eq):
@@ -216,7 +212,7 @@ def generate_solution_steps(latex_input: str) -> List[str]:
         simpl_latex = r"\\".join(latex(s) for s in simplified)
         steps.append(simpl_latex)
 
-        # 4️⃣ Solve.
+        # 4. Solve.
         if len(simplified) == 1:
             # Single equation.
             symbols, solutions = _solve_single(simplified[0])
@@ -230,10 +226,14 @@ def generate_solution_steps(latex_input: str) -> List[str]:
             solutions_raw = sympy.solve(eq_list, symbols, dict=True)
             if not solutions_raw:
                 raise ValueError("System could not be solved symbolically.")
-            # ``solutions_raw`` is a list of dicts; pick the first.
-            solutions = [solutions_raw[0][s] for s in symbols]
+            # ``solutions_raw`` is a list of dicts; collect all possible values.
+            solutions = []
+            for s in symbols:
+                vals = [sol_dict.get(s) for sol_dict in solutions_raw]
+                # Keep a list if there are several distinct solutions, otherwise a scalar.
+                solutions.append(vals if len(vals) > 1 else vals[0])
 
-        # 5️⃣ Format symbolic solutions.
+        # 5. Format symbolic solutions.
         symbolic_parts = []
         for s, sol in zip(symbols, solutions):
             # ``sol`` can be a list of multiple solutions for the same symbol.
@@ -245,7 +245,7 @@ def generate_solution_steps(latex_input: str) -> List[str]:
                 symbolic_parts.append(f"{latex(s)} = {latex(sol)}")
         steps.append(r",\; ".join(symbolic_parts))
 
-        # 6️⃣ Numerical approximations.
+        # 6. Numerical approximations.
         numeric_parts = []
         for s, sol in zip(symbols, solutions):
             # ``sol`` may be a single expression or a list/tuple of expressions.
