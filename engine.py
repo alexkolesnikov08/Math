@@ -22,7 +22,7 @@ All public functions follow the Google Python style guide.
 from __future__ import annotations
 
 import re
-from typing import List, Sequence, Tuple, Union
+from typing import List, Tuple, Union, cast
 
 import sympy
 from sympy import Eq, Symbol
@@ -53,7 +53,7 @@ def _split_into_equations(latex: str) -> List[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
-def _latex_to_sympy(eq_latex: str) -> Union[Eq, sympy.Expr]:
+def _latex_to_sympy(eq_latex: str) -> sympy.Basic:
     """Convert a single LaTeX equation/expression to a SymPy object.
 
     If the LaTeX contains an ``=`` sign the left‑ and right‑hand sides are
@@ -85,13 +85,18 @@ def _latex_to_sympy(eq_latex: str) -> Union[Eq, sympy.Expr]:
         right = eq_latex[split_index + 1 :].strip()
         lhs = parse_latex(left)
         rhs = parse_latex(right)
+        if lhs is None or rhs is None:
+            raise ValueError(f"Cannot parse LaTeX fragment: {eq_latex}")
         return Eq(lhs, rhs)
     else:
-        return parse_latex(eq_latex)
+        result = parse_latex(eq_latex)
+        if result is None:
+            raise ValueError(f"Cannot parse LaTeX: {eq_latex}")
+        return result
 
 
 def _solve_single(
-    eq: Union[Eq, sympy.Expr],
+    eq: sympy.Basic,
 ) -> Tuple[List[Symbol], List[Union[sympy.Expr, List[sympy.Expr]]]]:
     """Solve a single equation or expression for **all** free symbols at once.
 
@@ -110,7 +115,7 @@ def _solve_single(
     if not isinstance(eq, Eq):
         eq = Eq(eq, 0)
 
-    symbols = sorted(eq.free_symbols, key=lambda x: x.name)
+    symbols = sorted(eq.free_symbols, key=lambda x: str(x))
     if not symbols:
         raise ValueError("No free symbols to solve for.")
 
@@ -125,20 +130,20 @@ def _solve_single(
         for s in symbols:
             single = sympy.solve(eq, s)
             solutions.append(single)
-        return symbols, solutions
+        return cast(List[Symbol], symbols), solutions
 
     # Collect all solutions for each symbol from the list of dictionaries.
     # ``sol`` is a list of dicts, each dict representing one possible solution.
-    solutions: List[Union[sympy.Expr, List[sympy.Expr]]] = []
+    collected: List[Union[sympy.Expr, List[sympy.Expr]]] = []
     for s in symbols:
         # Gather the value of ``s`` from every solution dict.
         vals = [d.get(s) for d in sol]
         # If there is only one distinct value keep it as a scalar, otherwise keep the list.
         if len(vals) == 1:
-            solutions.append(vals[0])
+            collected.append(vals[0])
         else:
-            solutions.append(vals)
-    return symbols, solutions
+            collected.append(vals)
+    return cast(List[Symbol], symbols), collected
 
 
 def _numeric_approx(solution: sympy.Expr) -> sympy.Expr:
@@ -221,7 +226,7 @@ def generate_solution_steps(latex_input: str) -> List[str]:
             # Use ``sympy.solve`` with a list of equations.
             eq_list = [e if isinstance(e, Eq) else Eq(e, 0) for e in simplified]
             symbols = sorted(
-                {s for eq in eq_list for s in eq.free_symbols}, key=lambda x: x.name
+                {s for eq in eq_list for s in eq.free_symbols}, key=lambda x: str(x)
             )
             solutions_raw = sympy.solve(eq_list, symbols, dict=True)
             if not solutions_raw:
@@ -262,7 +267,7 @@ def generate_solution_steps(latex_input: str) -> List[str]:
 
     except Exception as exc:  # pylint: disable=broad-except
         # Return a user‑friendly LaTeX error block.
-        error_msg = f"\\text{{Error:}}\\; {sympy.latex(str(exc))}"
+        error_msg = f"\\text{{Error:}} \\text{{{str(exc)}}}"
         steps = [error_msg]
 
     return steps

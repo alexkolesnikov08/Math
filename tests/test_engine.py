@@ -12,8 +12,6 @@ from __future__ import annotations
 
 import re
 
-import pytest
-
 from engine import generate_solution_steps
 
 
@@ -96,8 +94,10 @@ def test_complex_roots():
 
     # Symbolic step must contain the imaginary unit I.
     symbolic = _strip_latex_spaces(steps[2])
-    # Symbolic step should contain the imaginary unit (SymPy may render as \"i\" or \"I\").\n    assert \"i\" in symbolic.lower()
+    # Symbolic step should contain the imaginary unit (SymPy may render as "i" or "I").
+    assert "i" in symbolic.lower()
 
     # Numeric approximation should also contain I.
     numeric = _strip_latex_spaces(steps[3])
-    # Numeric approximation should also contain the imaginary unit.\n    assert \"i\" in numeric.lower()
+    # Numeric approximation should also contain the imaginary unit.
+    assert "i" in numeric.lower()

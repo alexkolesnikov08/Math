@@ -1,4 +1,4 @@
-#!/opt/homebrew/bin/python3.11
+#!/usr/bin/env python3
 # Math/main.py
 """
 Command‑line interface for the LaTeX equation solver.
